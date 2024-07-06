@@ -180,7 +180,7 @@ def get_positional_encoding(d_model, max_length=100):
             else:
                 positional_encoding[i, j] = math.cos(i / math.pow(10000, (j - 1) / d_model))
 
-    positional_encoding = positional_encoding.unsqueeze(0)  # (1, max_length, d_model)
+    positional_encoding = positional_encoding.unsqueeze(0)  # (1, max_length, d_model)，后利用广播机制变为(batch_size, max_length, d_model)
 
     return positional_encoding
 

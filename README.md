@@ -52,28 +52,28 @@ But once you understand the transformer, you can just as easily apply it to any 
 
 **To build a model that can translate from one language to another.**
 
->Um ein Modell zu erstellen, das von einer Sprache in eine andere übersetzen kann.
+> Um ein Modell zu erstellen, das von einer Sprache in eine andere übersetzen kann.
 
 We will be implementing the pioneering research paper [_'Attention Is All You Need'_](https://arxiv.org/abs/1706.03762), which introduced the Transformer network to the world. A watershed moment for cutting-edge Natural Language Processing.
 
->Wir werden das wegweisende Forschungspapier [_"Attention Is All You Need"_](https://arxiv.org/abs/1706.03762) umsetzen, das das Transformer-Netzwerk in die Welt eingeführt hat. Ein Wendepunkt für die hochmoderne Natural Language Processing.
+> Wir werden das wegweisende Forschungspapier [_"Attention Is All You Need"_](https://arxiv.org/abs/1706.03762) umsetzen, das das Transformer-Netzwerk in die Welt eingeführt hat. Ein Wendepunkt für die hochmoderne Natural Language Processing.
 
 Specifically, we are going to be translating from **English** to **German**. And yes, everything written here in German is straight from the horse's mouth! (The horse, of course, being the model.)
 
->Konkret werden wir vom **Englischen** ins **Deutsche** übersetzen. Und ja, alles, was hier in deutscher Sprache geschrieben wird, ist direkt aus dem Mund des Pferdes! (Das Pferd ist natürlich das Modell.)
+> Konkret werden wir vom **Englischen** ins **Deutsche** übersetzen. Und ja, alles, was hier in deutscher Sprache geschrieben wird, ist direkt aus dem Mund des Pferdes! (Das Pferd ist natürlich das Modell.)
 
 # Concepts
 
 * **Machine Translation**. duh.
 
 * **Transformer Network**. We have all but retired recurrent neural networks (RNNs) in favour of transformers, a new type of sequence model that possesses an unparalleled ability for representation and abstraction – all while being simpler, more efficient, and significantly more parallelizable. Today, the application of transformers is near universal, as their resounding success in NLP has also led to increasing adoption in computer vision tasks.
-  
+
 * **Multi-Head Scaled Dot-Product Attention**. At the heart of the transformer is the attention mechanism, specifically this flavour of attention. It allows the transformer to interpret and encode a sequence in a multitude of contexts and with an unprecedented level of nuance.
 
 * **Encoder-Decoder Architecture**. Similar to RNNs, transformer models for sequence transduction typically consist of an encoder that encodes an input sequence, and a decoder that decodes it, token by token, into the output sequence.
 
 * **Positional Embeddings**. Unlike RNNs, transformers do not innately account for the sequential nature of text – they instead view such a sequence as a bag of tokens, or pieces of text, that can be freely mixed and matched with tokens from the same or different bag. The coordinates of tokens in a sequence are therefore manually injected into the transformer as one-dimensional vectors or *embeddings*, allowing the transformer to incorporate their relative positions into its calculations.
-  
+
 * **Byte Pair Encoding**. Language models are both enabled and constrained by their vocabularies. Machine translation, especially, is an *open*-vocabulary problem. Byte Pair Encoding is a way to construct a vocabulary of moderate size that is still able to represent nearly any word, whether it is known, seldom known, or unknown.
 
 * **Beam Search**. As an alternative to simply choosing the highest-scoring token at each step of the generative process, we consider multiple candidates, reserving judgement until we see what they give rise to in subsequent steps – before finally picking the best *overall* output sequence.
@@ -475,13 +475,13 @@ Notably –
 - We then add to each token embedding a ***positional* embedding**, which is a vector that signifies the position of the token in the sequence. As a transformer operates upon all tokens *together*, and not *sequentially* like in an RNN, we would need to explicitly indicate the positions of tokens. Positional embeddings are also stored in a look-up table. They can be learned, much like token embeddings, but the authors of the paper use a different strategy which we will examine very soon. 
 
 - The transformer encoder consists of **$6$ encoder layers**. 
-  
+
 - Each encoder layer consists of a ***self*-attention sublayer** and a position-wise **feed-forward sublayer**. 
-  
+
 - In the self-attention sublayer, the tokens in the English sequence attend to themselves, producing rich, contextual token representations. As many as **$8$ attention heads** are used in each self-attention sublayer. The feed-forward sublayer provides additional refinement to representations from the attention sublayer. Note that attention or feedforward sublayers in different encoder layers are independent of each other – they *do not* share parameters.
 
 - Each sublayer is preceded by **layer normalization**, which stabilizes the network and accelerates training. 
-  
+
 - **Residual connections** are applied across the each *layer-norm + sublayer* combination. Hence, and as discussed earlier, inputs and outputs to the sublayers must be of the same dimensionality $d_{model}$, which is also maintained across all encoder layers for convenience.
 
 As you can imagine, as the English sequence propagates through the encoder layers, it is progressively transformed into richer and more context-aware representation, each subsequent self-attention layer with its many heads mixing and matching numerous contexts diligently – and contexts *upon* contexts *upon* contexts. 
@@ -503,11 +503,11 @@ Notably –
 - **Positional embeddings** are added. The same positional embedding look-up table is shared between the encoder and decoder.
 
 - The transformer decoder consists of **$6$ decoder layers**. 
-  
+
 - Each decoder layer consists of a ***self*-attention sublayer**, a ***cross*-attention sublayer**, and a  position-wise **feed-forward sublayer**. 
 
 - While the self-attention sublayer allows the input (German) sequence to attend to its own contexts, the cross-attention sublayer allows for attending to contexts in the encoded English sequence from the encoder, which is what must be translated! Both sublayers use **$8$ attention heads**.
-  
+
 - The outputs of the final decoder layer are linearly projected to the size of the vocabulary $v$ using a linear layer that functions as a **classification head** and the *Softmax* operation is applied to generate probability scores for next-word predictions.
 
 - This classification head has learnable parameters of size $v \times d_{model}$. The shared English-German learnable embedding look-up table *also* has parameters of size $v \times d_{model}$. The parameters of the embedding table are *tied* to the parameters of the classification head. In other words, these parameters are shared. 
@@ -714,6 +714,76 @@ The authors use **sinusoids**.
 <img src="./img/positional_embeddings_2.PNG">
 </p>
 
+> - 每一行代表一个token的嵌入向量。
+> - 每一列代表嵌入向量的一个维度。
+> - 举个具体例子：
+>   
+>   假设有一个句子 "I love AI"，经过tokenization后变成3个token ["I", "love", "AI"]，并且 `embedding_dim = 4`（为了简化，通常embedding_dim会更高，如512或768）。
+>   
+>   输入嵌入矩阵 `X` 可能是：
+>   
+>   ```python
+>   X = [
+>       [0.1, 0.2, 0.3, 0.4],  # token "I" 的嵌入向量
+>       [0.5, 0.6, 0.7, 0.8],  # token "love" 的嵌入向量
+>       [0.9, 1.0, 1.1, 1.2]   # token "AI" 的嵌入向量
+>   ]
+>   ```
+>   
+>   > 通过GPT讲解，如下解释。
+>   > 
+>   > 简要概括就是：**pos为输入向量的某一行，i是列标（第i列），$d_{model}$是一共有多少行输入，即一共多少个嵌入向量。**
+>   > 
+>   > 在位置编码公式中：
+>   > 
+>   > $PE(pos,2i)​=sin(\frac{pos}{10000^{2i/dmodel}}​​)$
+>   > 
+>   > $PE(pos,2i+1)​=cos(\frac{pos}{10000^{2i/dmodel}}​)$
+>   > 
+>   > 这里的 pos 和 i 的含义如下：
+>   > - **pos**：表示序列中的位置索引。对于一个长度为 sequence_length 的序列， pos 的取值范围是 0 到 sequence_length−1。在输入张量中， pos 对应于输入张量的第 pos 行，即序列中的第 pos 个token。
+>   > 
+>   > - **i**：表示嵌入维度的索引。对于一个嵌入维度为 d_model 的向量， i 的取值范围是 0 到 d_model​/2−1。因为我们对嵌入向量的**每一对（奇偶数）维度**使用不同的正弦和余弦函数，所以嵌入维度的总数是 2i 和 2i+1。
+>   > 
+>   > - ***注意是每一对，行标0 1的i=0，行标2 3的i=1，然后代入2i，以此类推***
+>   > 
+>   > ### 输入张量与位置编码的关系
+>   > 
+>   > 假设输入张量 X 的维度为 (batch_size,sequence_length,d_model)，我们可以简化为一个二维矩阵 (sequence_length,d_model) 来讨论位置编码。具体来说：
+>   > 
+>   > - **每一行** 对应于序列中的一个位置 pos，即输入张量的第 pos 行。
+>   > - **每一列** 对应于嵌入向量的一个维度 2i 或 2i+1，即输入张量的第 2i 和 2i+1 列。
+>   > 
+>   > ### 详细解释
+>   > 
+>   > 1. **位置 pos**：
+>   >    
+>   >    - 对于一个长度为 3 的序列 ["I","love","AI"]，位置 pos 的取值分别为 0, 1, 2。
+>   >    - 在输入张量中，这对应于第 0 行、第 1 行和第 2 行。
+>   > 
+>   > 2. **嵌入维度 i**：
+>   >    
+>   >    - 对于一个嵌入维度为 4 的向量， i 的取值范围是 0 到 1。
+>   >    - 对应的维度为 2i 和 2i+1，即 0 和 1，2 和 3。
+>   > 
+>   > ### 位置编码计算示例
+>   > 
+>   > 假设 seq_len=3 和 d_model=4，我们详细计算每个位置的 PE 值。
+>   > 
+>   > #### 位置 1：
+>   > 
+>   > $PE_{(1,0)​}=sin(\frac{1}{10000^{0/4}}​)=sin(1)=0.84147098$
+>   > 
+>   > $PE_{(1,1)}​=cos(\frac{1}{10000^{0/4}}​)=cos(1)=0.54030231$
+>   > 
+>   > $PE_{(1,2)}​=sin(\frac{1}{10000^{2/4}})≈sin(0.0001)=0.0001$
+>   > 
+>   > $PE_{(1,3)​}=cos(\frac{1}{10000^{2/4}})≈cos(0.0001)=0.99999999$
+>   > 
+>   > 所以位置 1 的位置编码向量为： 
+>   > 
+>   > $PE(1)​=[0.84147098,0.54030231,0.0001,0.99999999]$
+
 If you consider the standard sinusioidal forms $\sin\omega i$ and $\cos\omega i$, for positions $i$, you can see that the angular frequency $\omega$ decreases geometrically from $1$ to about $\frac{1}{10000}$ radians per position as you move from left to right in the embedding. This means that the frequency ($f=\frac{\omega}{2\pi}$) decreases from $\frac{1}{2\pi}$ to about $\frac{1}{10000\cdot2\pi}$ cycles per position, and the wavelength ($\lambda=\frac{1}{f}$) increases from $2\pi$ to about $10000\cdot2\pi$ positions per cycle. 
 
 <p align="center">                            
@@ -883,15 +953,15 @@ It would be great if we could somehow _not_ decide until we've finished decoding
 **Beam search** does exactly this.
 
 - At the first decode step, use the `<BOS>` token to begin generation, and consider the top $k$ candidates for the first token.
-  
+
 - Pass these $k$ first-tokens to the decoder, then calculate the aggregate score (product of probabilities or sum of log-probabilities) for each *first-token-second-token* combination, and then consider the top $k$ combinations from *all* such combinations.
-  
+
 - Pass these $k$ candidate sequences to the decoder, calculate the aggregate score for each *first-token-second-token-third-token* combination and choose the top $k$ combinations.
-  
+
 - Continue generation by repeating this process.
 
 - Some candidate sequences (subsequences, really) may lead nowhere because generations arising from them do not figure in the top $k$ candidates.
-  
+
 - If in the top $k$ candidate sequences, at any step, an `<EOS>` token has been generated, that sequence candidate has reached completion. Set it aside as a completed sequence.
 
 - Stop when at least $k$ sequences have completed generation. Multiple sequences may reach completion at a given time, so it is possible to have more than $k$ completed sequences in the end.
@@ -961,9 +1031,9 @@ We will use training, validation, and test data from the [WMT14 English-German t
 The **training data** combines three English-German parallel corpora – 
 
 - *Europarl v7*, containing translations from the proceedings of the European Parliament
-  
+
 - *Common Crawl*, containing translations from web sources
-  
+
 - *News Commentary*, containing translations of news articles
 
 In all, there are 4.5 million English-German sentence pairs.
@@ -979,19 +1049,19 @@ See [`prepare_data.py`](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Transf
 This executes two functions – 
 
 - See `download_data()` in [`utils.py`](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Transformers/blob/master/download_data.py).
-
+  
   While all datasets can be downloaded manually from the [WMT14 homepage](https://www.statmt.org/wmt14/translation-task.html), **you do not need to**. This function automatically downloads them.
-
+  
   Training datasets are downloaded in their compressed forms from the same sources and extracted. Compressed datasets are downloaded to a folder called `tar files` and files extracted from these are stored in a folder called `extracted files`.
-
+  
   Validation and test sets are downloaded using the [sacreBLEU](https://github.com/mjpost/sacrebleu) library, which we will also use for computing evaluation metrics – make sure you have it installed. This saves the files `val.en`, `val.de`, `test.en`, and `test.de`. 
 
 - See `prepare_data()` in [`utils.py`](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Transformers/blob/master/prepare_data.py).
-
+  
   This combines the contents of all the extracted training datasets into single files `train.en` and `train.de`, amounting to about 4.5 million English-German sentence pairs.
-
+  
   A Byte Pair Encoding model is then trained from the combined English-German data using the [YouTokenToMe](https://github.com/VKCOM/YouTokenToMe) library and saved to file as `bpe.model`.
-
+  
   Since I observed some noise in this data (presumably mostly from the Common Crawl dataset), I performed additional filtering of my own – I only kept sentence pairs where, à la our BPE model, the English and German sentences were both between $3$ and $150$ tokens in length, and they didn't differ in their lengths by more than a factor of $2$ (or $\frac{1}{2}$). This resulted in the removal of about $6\%$ of all sentence pairs. You may choose to adjust these parameters or not filter at all – the paper makes no mention of any data cleaning measures.
 
 Therefore, all you need to do is run this file with Python after modifying folder paths as desired –
@@ -1010,7 +1080,32 @@ As is typical, this will be in the form of indices of the constituent tokens in 
 
 Since, generally, different sequences in a batch can have different lengths, all sequences are **padded to a fixed length** that is often the length of the longest sequence in the batch. This is done with pad-tokens, which is a special default token in the BPE vocabulary.
 
+> 按每个batch的最长句子进行标定，然后对其他的短句进行padding。使用的是在BPE词表中特殊的默认token——pad-tokens
+
 The authors of the paper do not use a fixed number of sequences in each batch, but rather a **fixed number of target (German) tokens**. This makes sense because we are ultimately predicting target tokens, and we want each predicted token to have a similar contribution to the loss computed from each batch. This also means that batches with longer or shorter target sequences must have fewer or more sequences respectively. **The number of English or German sequences in a batch will be variable.**
+
+> 假设有两个批次：
+> 
+> - **批次A**：包含2个序列，每个序列10个词元，总计20个词元。
+> - **批次B**：包含4个序列，每个序列5个词元，总计20个词元。
+> 
+> 在这种情况下：
+> 
+> - 每个批次的总损失是20个词元的损失和。
+> - 无论序列数量如何变化，损失贡献均衡，计算资源利用稳定。
+> 
+> 相反，如果每个批次固定序列数量：
+> 
+> - **批次A**：2个序列，每个10个词元，总计20个词元。
+> - **批次B**：2个序列，每个5个词元，总计10个词元。
+> 
+> 此时，批次A的损失会比批次B大，导致训练中不均衡，梯度更新不稳定，计算效率低下。
+> 
+> 因此，固定目标词元数量确保每个批次中损失计算均衡、梯度更新稳定和训练资源高效利用。
+
+> 此外，是针对**批次中的**词元总数进行限制。需要对过长的句子进行截断（truncation），过短的句子需要填充（padding）
+> 
+> 在实际操作中，合理设置固定词元数量能够有效平衡训练效率和翻译质量。在模型训练初期，可以尝试不同的词元数量设置，通过验证集上的表现来选择最佳参数。同时，确保翻译系统能够动态调整批次大小，以适应不同长度的输入句子。
 
 Therefore, **source or encoder or English sequences fed to the model must be a `Long` tensor of dimensions $N \times L_e$**, where $N$ is the number of sequences in the batch, which is variable, and $L_e$ is the padded length of the sequences.
 
@@ -1079,9 +1174,9 @@ At the time of creation of each instance of this layer, we specify whether it is
 During forward propagation, this takes as input $N$ sets of –
 
 - query-sequences, a tensor of $N \times L_{queries} \times d_{model}$ dimensions
-  
+
 - key-value sequences, a tensor of $N \times L_{keys} \times d_{model}$ dimensions
-  
+
 - true key-value sequence lengths, a tensor of $N$ dimensions
 
 Here, $N$ is the number of query or key-value sequences in the batch, $L_{queries}$ is the maximum padded length of the query sequences, and $L_{keys}$ is the maximum padded length of the key-value sequences. 
@@ -1143,7 +1238,7 @@ The dot-products are scaled by $\sqrt{d_{model}}$.
 Before computing the *Softmax*, we need to **mask away invalid attention access** as per the rules described [earlier](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Transformers#can-anything-attend-to-anything). We introduce up to two masks –
 
 - Mask away keys that are from pad-tokens. This is why we provide the true key-value sequence lengths as an input variable to this layer.
-  
+
 - If this is self-attention in the decoder, for each query, mask away keys that are chronologically ahead of queries.
 
 The masking is accomplished by setting the dot-products at these locations to a large negative number $-\infty$, which would evaluate to $0$ under the Softmax, resulting in the values at those locations not being used in the results for those queries.
@@ -1197,7 +1292,7 @@ This constructs the **Transformer encoder** [as described](https://github.com/sg
 The encoder takes as input $N$ sets of –
 
 - encoder (English) sequences, a tensor of $N \times L_e$ dimensions.
-  
+
 - true encoder sequence lengths, a tensor of $N$ dimensions
 
 Here, $N$ is the number of encoder sequences in the batch, and $L_e$ is the padded length of the encoder sequences.
@@ -1209,7 +1304,7 @@ We **pass this through the encoder layers**, each of which combines in series �
 - a multi-head *self*-attention sublayer, where the encoder sequences are passed as both the query and key-value sequences
 
 - a feed-forward sublayer 
- 
+
 The inputs and outputs of each encoder layer are tensors of $N \times L_e \times d_{model}$ dimensions.
 
 **Apply layer normalization** to the outputs from the final encoder layer. The encoder output is therefore also a tensor of $N \times L_e \times d_{model}$ dimensions.
@@ -1223,11 +1318,11 @@ This constructs the **Transformer decoder** [as described](https://github.com/sg
 The decoder takes as input $N$ sets of –
 
 - decoder (German) sequences, a tensor of $N \times L_d$ dimensions
-  
+
 - true decoder sequence lengths, a tensor of $N$ dimensions
 
 - encoded (English) sequences from the encoder, a tensor of $N \times L_e$ dimensions
-  
+
 - true encoder sequence lengths, a tensor of $N$ dimensions
 
 Here, $N$ is the number of decoder sequences in the batch, $L_d$ is the padded length of the decoder sequences, and $L_e$ is the padded length of the (encoded) encoder sequences.
@@ -1239,7 +1334,7 @@ We **pass this through the decoder layers**, each of which combines in series �
 - a multi-head *self*-attention sublayer, where the decoder sequences are passed as both the query and key-value sequences
 
 - a multi-head *cross*-attention sublayer, where the decoder sequences is passed as the query sequences and the encoded sequences from the encoder are passed as key-value sequences
-  
+
 - a feed-forward sublayer in series. The inputs and outputs of each encoder layer are tensors of $N \times L_d \times d_{model}$ dimensions.
 
 We **apply layer normalization** to the outputs from the final decoder layer. 
@@ -1360,12 +1455,12 @@ This script calculates BLEU scores for a number of different casing and tokeniza
 
 Here's how my trained model fares against the test set –
 
-|   BLEU   | Tokenization  | Cased |                                   sacreBLEU signature                                    |
-| :------: | :-----------: | :---: | :--------------------------------------------------------------------------------------: |
-| **25.1** |      13a      |  Yes  | `BLEU+case.mixed+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.13a+version.1.4.3`  |
-| **25.6** |      13a      |  No   |   `BLEU+case.lc+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.13a+version.1.4.3`   |
-| **25.9** | International |  Yes  | `BLEU+case.mixed+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.intl+version.1.4.3` |
-| **26.3** | International |  No   |  `BLEU+case.lc+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.intl+version.1.4.3`   |
+| BLEU     | Tokenization  | Cased | sacreBLEU signature                                                                      |
+|:--------:|:-------------:|:-----:|:----------------------------------------------------------------------------------------:|
+| **25.1** | 13a           | Yes   | `BLEU+case.mixed+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.13a+version.1.4.3`  |
+| **25.6** | 13a           | No    | `BLEU+case.lc+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.13a+version.1.4.3`     |
+| **25.9** | International | Yes   | `BLEU+case.mixed+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.intl+version.1.4.3` |
+| **26.3** | International | No    | `BLEU+case.lc+lang.en-de+numrefs.1+smooth.exp+test.wmt14/full+tok.intl+version.1.4.3`    |
 
 The first value (13a tokenization, cased) is how the BLEU score is officially calculated by [WMT](https://www.statmt.org/wmt14/translation-task.html) (using `mteval-v13a.pl`).
 
