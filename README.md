@@ -872,6 +872,57 @@ It's also easy to see why common words will end up directly represented in the v
 ['▁Ab', 'wasser', 'be', 'hand', 'lungs', 'anlage']
 ```
 
+> ### 词嵌入步骤
+> 
+> 1. **子词映射**：
+>    
+>    - 将每个子词映射到一个固定维度的向量空间。例如，假设词嵌入维度为300，那么每个子词“▁Ab”，“wasser”，“be”等都会有一个300维的向量表示。
+> 
+> 2. **词嵌入矩阵**：
+>    
+>    - 创建一个词嵌入矩阵，*这个矩阵通常是随机初始化的*，其中每行对应一个子词的嵌入向量。例如：
+>    
+>    - ```python
+>      embedding_matrix = {
+>       '▁Ab': [0.1, 0.2, ..., 0.3], # 300维向量
+>       'wasser': [0.05, 0.4, ..., 0.2],
+>       'be': [0.3, 0.6, ..., 0.1],
+>       'hand': [0.7, 0.1, ..., 0.5],
+>       'lungs': [0.2, 0.8, ..., 0.4],
+>       'anlage': [0.5, 0.3, ..., 0.6]
+>      }
+>      ```
+>      
+>      
+> 
+> 3. **嵌入向量组合**：
+>    
+>    - 将子词向量按顺序组合，得到整个单词的表示。通常方法有：
+>      - **求平均**：将所有子词的向量求平均。
+>      - **求和**：将所有子词的向量求和。
+>      - **拼接**：将所有子词的向量按顺序拼接（但可能会导致维度过大）。
+> 
+> 例如，使用求平均方法：
+> 
+> - ```python
+>   import numpy as np
+>   
+>   subword_embeddings = np.array([embedding_matrix['▁Ab'], 
+>                                 embedding_matrix['wasser'], 
+>                                 embedding_matrix['be'], 
+>                                 embedding_matrix['hand'], 
+>                                 embedding_matrix['lungs'], 
+>                                 embedding_matrix['anlage']])
+>   
+>   word_embedding = np.mean(subword_embeddings, axis=0)
+>   ```
+> 
+> 
+> 
+> 最终得到的词嵌入向量是一个固定维度的向量（如300维），它综合了所有子词单元的向量表示。这种方式不仅能够处理词汇表之外的新词，还能捕捉词汇的细粒度语义信息，提高模型的泛化能力。
+> 
+> 通过上述步骤，单词“Abwasserbehandlungsanlage”在BPE分析后得到的列表可以被转换为一个固定维度的词嵌入向量，方便在神经网络中进行处理和训练。
+
 Similarly, consider the English phrase "*motor vehicle liability insurance*", which would be translated to "*Kraftfahrzeug-Haftpflichtversicherung*".
 
 ```python
@@ -924,7 +975,54 @@ The obvious solution is **regularization**, which as you know usually involves g
 <img src="./img/label_smoothing_3.PNG">
 </p>
 
- The difference between $w_t$ and the other tokens is less stark in the smoothed label vector. The co-efficient $\varepsilon$ determines the strength of the smoothing.
+> ### 平滑后的标签分布计算
+> 
+> 平滑交叉熵损失的平滑标签分布是通过在真实标签上加入一个小的均匀分布噪声来实现的。具体计算方法如下：
+> 
+> #### 计算公式
+> 
+> 对于一个多分类问题，假设有 C 个类别，真实标签为 yi​，其中 yi​=1 表示当前样本属于第 i 类，其余类别为0。平滑后的标签分布 yi′​ 计算公式为：
+> 
+> yi′​=(1−ϵ)/yi​+ϵ/C​
+> 
+> 其中：
+> 
+> - ϵ 是平滑参数。
+> - C 是类别数量。
+> - yi​ 是真实标签。
+> 
+> #### 示例计算
+> 
+> 假设有一个三分类问题，真实标签为 [1,0,0]，平滑参数 ϵ=0.1，类别数量 C=3。
+> 
+> 我们需要计算平滑后的标签分布 y′：
+> 
+> 1. 计算第一个类别的平滑标签值：
+>    
+>    y1′​=(1−ϵ)/y1+ϵ/C​=(1−0.1)⋅1+0.1/3​=0.9+0.0333=0.9333
+> 
+> 2. 计算第二个类别的平滑标签值：
+>    
+>    y2′​=(1−ϵ)/y2+ϵ/C=(1−0.1)⋅0+0.1/3​=0+0.0333=0.0333
+> 
+> 3. 计算第三个类别的平滑标签值：
+>    
+>    y3′​=(1−ϵ)/y3+ϵ/C=(1−0.1)⋅0+0.1/3​=0+0.0333=0.0333
+> 
+> 平滑后的标签分布为：
+> 
+> y′=[0.9333,0.0333,0.0333]
+> 
+> #### 简化步骤
+> 
+> 使用上述公式，我们可以概括为以下步骤：
+> 
+> 1. 将 (1−ϵ) 乘以真实标签。
+> 2. 将 ϵ​/C 加到每个标签上。
+> 
+> 这种平滑处理使得每个标签值都不会达到完全的0或1，从而防止模型过度自信，提高了泛化能力。
+
+The difference between $w_t$ and the other tokens is less stark in the smoothed label vector. The co-efficient $\varepsilon$ determines the strength of the smoothing.
 
 Label-smoothing drives the model to also try to maximize the probabilities of the other tokens, as we would expect with $w_t$, but to a much smaller extent. This is the noise that produces the regularizing effect. 
 
@@ -1018,6 +1116,167 @@ And with this, it appears that our task of trying to understand the working of t
 
 # Implementation
 
+> 在进行上面知识学习的时候，有点懵逼，不知道具体哪个部分起到了哪些作用。
+> 
+> 下面通过GPT总结出来的整个项目的执行流程，先总结一下上面说过的知识，再在学习下面知识之前，对整体流程有一个总体认识。
+> 
+> ### 示例输入
+> 
+> 假设我们有一个批次包含3个句子：
+> 
+> - 英语句子（源序列）：["Hello", "How are you?", "Good morning"]
+> - 对应的德语句子（目标序列）：["Hallo", "Wie geht's?", "Guten Morgen"]
+> 
+> ### 详细步骤
+> 
+> 1. **词汇表和BPE模型训练**
+>    
+>    - 在训练前，我们使用大规模语料库来训练BPE模型，生成词汇表和BPE编码器。这一步完成后，我们有了一个词汇表和相应的BPE编码器。
+> 
+> 2. **BPE编码**
+>    
+>    - 使用训练好的BPE模型，将英语和德语句子分解为子词（subwords）或词元（tokens）。假设我们的BPE模型将句子编码为以下形式：
+>      - 英语句子：
+>        - "Hello" -> ["Hel", "lo"]
+>        - "How are you?" -> ["How", "are", "you", "?"]
+>        - "Good morning" -> ["Good", "morning"]
+>      - 德语句子：
+>        - "Hallo" -> ["Hal", "lo"]
+>        - "Wie geht's?" -> ["Wie", "geht", "'s", "?"]
+>        - "Guten Morgen" -> ["Guten", "Morgen"]
+> 
+> 3. **将子词（tokens）转换为索引**
+>    
+>    - 使用词汇表将每个子词转换为对应的索引：
+>      - 英语句子索引：
+>        - ["Hel", "lo"] -> [1, 2]
+>        - ["How", "are", "you", "?"] -> [3, 4, 5, 6]
+>        - ["Good", "morning"] -> [7, 8]
+>      - 德语句子索引：
+>        - ["Hal", "lo"] -> [9, 2]
+>        - ["Wie", "geht", "'s", "?"] -> [10, 11, 12, 6]
+>        - ["Guten", "Morgen"] -> [13, 14]
+> 
+> 4. **填充序列**
+>    
+>    - 将所有句子填充到批次中最长的序列长度：
+>      - 填充后的英语句子索引：
+>        - [1, 2, 0, 0] # "Hello" -> ["Hel", "lo", "<pad>", "<pad>"]
+>        - [3, 4, 5, 6] # "How are you?" -> ["How", "are", "you", "?"]
+>        - [7, 8, 0, 0] # "Good morning" -> ["Good", "morning", "<pad>", "<pad>"]
+>      - 填充后的德语句子索引：
+>        - [9, 2, 0, 0] # "Hallo" -> ["Hal", "lo", "<pad>", "<pad>"]
+>        - [10, 11, 12, 6] # "Wie geht's?" -> ["Wie", "geht", "'s", "?"]
+>        - [13, 14, 0, 0] # "Guten Morgen" -> ["Guten", "Morgen", "<pad>", "<pad>"]
+>    - 其中 0 表示填充标记 `<pad>` 的索引。
+> 
+> 5. **添加特殊标记**
+>    
+>    - 在目标序列的开头和结尾添加特殊标记 `<BOS>` 和 `<EOS>`：
+>      - [<BOS>, 9, 2, 0, 0, <EOS>]
+>      - [<BOS>, 10, 11, 12, 6, <EOS>]
+>      - [<BOS>, 13, 14, 0, 0, <EOS>]
+> 
+> 6. **创建长度张量**
+>    
+>    - 创建表示每个序列实际长度的张量：
+>      - 英语句子长度：[2, 4, 2]
+>      - 德语句子长度：[2, 4, 2]
+> 
+> ### 具体操作顺序
+> 
+> 1. **读取和预处理数据**
+>    
+>    - 读取英语和德语句子。
+>    - 使用BPE模型对句子进行编码。
+>    - 将编码后的句子转换为索引。
+> 
+> 2. **填充序列**
+>    
+>    - 计算批次中最长序列的长度。
+>    - 使用填充标记 `<pad>` 将所有句子填充到相同长度。
+> 
+> 3. **创建长度张量**
+>    
+>    - 计算每个句子的实际长度，生成长度张量。
+>      
+>      > **批次张量**：这个张量包含了所有填充后的序列，它们作为输入提供给模型的编码器和解码器。
+>      
+>      > **长度张量**：这个张量提供了每个序列的实际长度，确保在模型内部处理时可以准确地知道每个序列的有效部分长度。
+>      > 
+>      > 在前向传播过程中，长度张量主要用于生成掩码（masking），确保模型不会在填充部分浪费计算资源。具体步骤如下：
+>      > - **生成掩码**：根据长度张量生成掩码矩阵。掩码矩阵标记出填充部分，使得这些部分在计算注意力（attention）时被忽略。例如，对于一个填充后的序列 [1, 2, 0, 0] 和长度为 2，掩码矩阵会标记出填充的0位置。
+>      > - **应用掩码**：在注意力机制中，掩码矩阵用于掩蔽填充标记的位置，确保注意力权重只分配给有效的词元。
+>      > 
+>      > 在计算损失时，长度张量用于确保只计算实际序列部分的损失，而不是填充部分。这一步骤如下：
+>      > 
+>      > - **计算有效位置的损失**：根据长度张量，计算实际有效部分的损失，忽略填充部分。例如，损失计算时只考虑前两个词元 [1, 2] 的损失，而忽略填充的 [0, 0] 部分。
+>      > - **加权平均损失**：如果有必要，可以根据长度张量对损失进行加权平均，使得每个序列对总损失的贡献与其实际长度成比例。
+>      
+>      > 以下是批次张量和长度张量的示例：
+>      > 
+>      > ```Python
+>      > import torch
+>      > import torch.nn.functional as F
+>      > 
+>      > # 示例输入
+>      > source_sequences = torch.tensor([
+>      >     [1, 2, 0, 0],  # "Hello" -> ["Hel", "lo", "<pad>", "<pad>"]
+>      >     [3, 4, 5, 6],  # "How are you?" -> ["How", "are", "you", "?"]
+>      >     [7, 8, 0, 0]   # "Good morning" -> ["Good", "morning", "<pad>", "<pad>"]
+>      > ])
+>      > 
+>      > target_sequences = torch.tensor([
+>      >     [101, 9, 2, 0, 0, 102],  # <BOS> "Hallo" -> ["<BOS>", "Hal", "lo", "<pad>", "<pad>", "<EOS>"]
+>      >     [101, 10, 11, 12, 6, 102],  # <BOS> "Wie geht's?" -> ["<BOS>", "Wie", "geht", "'s", "?", "<EOS>"]
+>      >     [101, 13, 14, 0, 0, 102]   # <BOS> "Guten Morgen" -> ["<BOS>", "Guten", "Morgen", "<pad>", "<pad>", "<EOS>"]
+>      > ])
+>      > 
+>      > source_lengths = torch.tensor([2, 4, 2])
+>      > target_lengths = torch.tensor([2, 4, 2])
+>      > 
+>      > # 生成掩码
+>      > def create_mask(lengths, max_len):
+>      >     mask = torch.arange(max_len).expand(len(lengths), max_len) < lengths.unsqueeze(1)
+>      >     return mask
+>      > 
+>      > source_mask = create_mask(source_lengths, source_sequences.size(1))
+>      > target_mask = create_mask(target_lengths, target_sequences.size(1))
+>      > 
+>      > # 前向传播（假设encoder和decoder是已经定义好的模型）
+>      > encoder_outputs = encoder(source_sequences, src_key_padding_mask=~source_mask)
+>      > decoder_outputs = decoder(target_sequences, encoder_outputs, tgt_key_padding_mask=~target_mask)
+>      > 
+>      > # 计算损失（假设loss_fn是已经定义好的损失函数）
+>      > loss = loss_fn(decoder_outputs.view(-1, vocab_size), target_sequences.view(-1))
+>      > 
+>      > # 使用长度张量计算有效位置的损失
+>      > active_loss = target_mask.view(-1)
+>      > active_logits = decoder_outputs.view(-1, vocab_size)[active_loss]
+>      > active_labels = target_sequences.view(-1)[active_loss]
+>      > 
+>      > loss = F.cross_entropy(active_logits, active_labels)
+>      > 
+>      > loss.backward()
+>      > optimizer.step()
+>      > ```
+> 
+> 4. **准备输入和输出**
+>    
+>    - 英语序列（源序列）输入编码器。
+>    - 德语序列（目标序列）输入解码器，带有 `<BOS>` 和 `<EOS>` 标记。
+>    - 生成批次张量，并输入到模型中。
+> 
+> 5. **模型前向传播**
+>    
+>    - 编码器处理英语序列，生成编码表示。
+>    - 解码器使用编码表示和德语序列生成翻译结果。
+> 
+> 6. **计算损失和优化**
+>    
+>    - 使用真实德语序列计算损失，忽略填充部分。
+>    - 优化模型参数。
+
 The sections below briefly describe the implementation.
 
 They are meant to provide some context, but **details are best understood directly from the code**, which is quite heavily commented.
@@ -1109,9 +1368,18 @@ The authors of the paper do not use a fixed number of sequences in each batch, b
 
 Therefore, **source or encoder or English sequences fed to the model must be a `Long` tensor of dimensions $N \times L_e$**, where $N$ is the number of sequences in the batch, which is variable, and $L_e$ is the padded length of the sequences.
 
+> 查看Implementation开始的例子，N就是一个Batch里面有多少个句子。$L_e$就是经过padding之后的句子的长度。
+
 #### Target / Decoder / German Sequences
 
 This is the **target sequence in German that is fed to the Decoder** in a teacher-forcing setting, and is also the **output sequence from the Decoder** in its left-shifted form. Left-shifting the sequence can be done easily during training at the time of computing the loss – we only need the original sequence.
+
+> Teacher-forcing 是一种在训练序列到序列（seq2seq）模型时常用的技术。它的基本思想是在训练时使用真实的目标序列（即训练数据中的正确答案）作为下一步的输入，而不是模型的预测结果。具体步骤如下：
+> 
+> - 模型在当前时间步生成一个输出。
+> - 训练过程中，下一时间步的输入直接使用真实的目标序列，而不是模型刚刚生成的输出。
+> 
+> 这种方法的优点是能够加速训练过程并使模型更快地收敛，因为它使用了真实的目标序列，减少了错误传播的可能性。
 
 As is also typical, these sequences will be in the form of indices of the constituent tokens in the vocabulary. This vocabulary was created at the time of training the BPE model.
 
@@ -1134,6 +1402,44 @@ Since the target or decoder or German sequences in a batch are padded to a lengt
 Therefore, **target or decoder or German sequence lengths fed to the model must be a `Long` tensor of dimensions $N$**, where $N$ is the number of sequences in the batch, which is variable.
 
 ### Custom DataLoader
+
+> 作者在**训练**时，固定答案目标词元（德语）的数量，来调节训练过程中生成的词元的数量的。
+> 
+> 作者的目标是通过在每个批次中固定好实际的目标词元（即德语序列，ground truth）的数量，来确保生成的目标词元数量与实际的目标词元数量大致相等。
+
+
+
+> 1. **加载数据和计算长度**:
+>    
+>    - 在`__init__()`方法中，加载训练、验证或测试数据，并使用训练的BPE模型计算序列长度。每个数据点包含一个英语序列和一个德语序列及其长度。
+> 
+> 2. **排序数据点**:
+>    
+>    - 如果是用于训练的数据加载器，会先按德语序列的长度对数据点进行预排序。这是为了后续按德语序列长度分块做准备。
+> 
+> 3. **创建批次**:
+>    
+>    - 在`create_batches()`方法中，如果是训练数据加载器，会将所有数据点按德语序列的长度分块（使用`itertools.groupby()`）。
+>    - 在每个分块内，再按英语序列的长度对数据点排序。这是为了在打包这些序列时尽量减少填充（padding）的需求。
+> 
+> 4. **分割批次**:
+>    
+>    - 将每个分块按照所需的德语词元总数分割成多个批次。例如，如果一个分块内的所有数据点的德语序列长度为`L`，并且希望每个批次包含`N`个德语词元，那么这个分块会被分割成多个每批次大约包含`N/L`个数据点的批次。
+>    - 通过这种方式，训练批次包含了接近于所需数量的德语词元，并且德语序列不需要填充，英语序列需要的填充也最小化。
+> 
+> 5. **随机打乱批次**:
+>    
+>    - 所有来自不同分块的批次被随机打乱，以确保每个训练时期的批次顺序不同。
+> 
+> 6. **批次处理**:
+>    
+>    - 在`__next__()`方法中，返回每个最终形式的批次。将英语和德语序列编码成词汇表中的索引，并且德语序列会被加上<BOS>和<EOS>标记。必要的填充通过PyTorch的`pad_sequence`函数进行。
+>    - 还会创建包含英语和德语序列真实长度的张量（即不包括填充的长度）。
+> 
+> 7. **停止迭代和重置批次**:
+>    
+>    - 当所有批次都被返回后（由`current_batch`计数器跟踪），在`__next__()`方法中会引发一个`StopIteration`异常，停止返回批次。
+>    - 要开始新的训练时期，可以通过调用`create_batches()`方法重置数据加载器，这会重新打乱批次并重置批次计数器。
 
 See `SequenceLoader` in [`dataloader.py`](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Transformers/blob/master/dataloader.py).
 
