@@ -1525,6 +1525,8 @@ This can be *rearranged* into the form we need – a 4D tensor of $N \times L_{q
 <img src="./img/queries_shape_1.PNG">
 </p>
 
+![](/Users/wanrenwang/Library/Application%20Support/marktext/images/2024-07-11-20-43-49-image.png)
+
 In a similar vein, keys are rearranged to $N \times L_{keys} \times h \times d_{keys}$ dimensions and values are rearranged to $N \times L_{keys} \times h \times d_{values}$ dimensions.
 
 We also need a way to parallelize the multiple attention heads. We can do this simply by considering the multiple heads as different datapoints in our batch. In other words, we pretend that we have $N * h$ query sequences or key-value sequences with which we perform single-head attention.
@@ -1534,6 +1536,8 @@ This means that the queries will be rearranged to a 3D tensor of $(N * h) \times
 <p align="center">                            
 <img src="./img/queries_shape_2.PNG">
 </p>
+
+![](/Users/wanrenwang/Library/Application%20Support/marktext/images/2024-07-11-20-44-06-image.png)
 
 In a similar vein, keys are rearranged to $(N * h) \times L_{keys} \times d_{keys}$ dimensions and values are rearranged to $(N * h) \times L_{keys} \times d_{values}$ dimensions.
 
